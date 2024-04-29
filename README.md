@@ -28,10 +28,10 @@ I explored the impacts of differing (in provenance and quality) datasets, divers
 
 ## Insights
 In general I found:
-	- Fine Tuning>Fewshot>Zero-shot
-	- Bigger models were better
-	- Diversity of training data was important
-	- It’s easy to overfit on the training data
+- Fine Tuning>Fewshot>Zero-shot
+- Bigger models were better
+- Diversity of training data was important
+- It’s easy to overfit on the training data
 
 Other approaches attempted, without success: Generating multiple responses (through multiple models or through sampling on one model) and asking a bigger model to decide the best one (errors were too correlated, perhaps).
 
