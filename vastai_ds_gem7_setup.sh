@@ -7,11 +7,6 @@
 #ssh -i ./.ssh/vastai_key -p 40456 root@24.122.214.184
 #scp -i ./.ssh/vastai_key -P 40456 -r /Users/christopherackerman/Downloads/mixed_dataset_big_train.csv root@24.122.214.184:/root/data/
 
-echo 'export HF_TOKEN="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"' >> ~/.bashrc
-echo 'export WANDB_API_KEY="5892f3b03c0c276c95ac7fca7a645ba07a53d953"' >> ~/.bashrc
-source ~/.bashrc
-chmod 600 ~/.bashrc
-
 #Prep for gemma
 pip3 install -q -U bitsandbytes==0.42.0
 pip3 install -q -U peft==0.8.2
