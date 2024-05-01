@@ -16,5 +16,5 @@ pip3 install -q -U datasets==2.17.0
 pip3 install -q -U transformers==4.38.1
 pip3 install wandb==0.15.11
 
-pip3 install deepspeed
+pip3 install deepspeed==0.13.1 # with later versions I get an error saving checkpoints
 deepspeed --install_deps
