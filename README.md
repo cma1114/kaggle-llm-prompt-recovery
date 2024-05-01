@@ -17,7 +17,7 @@ The goal is to figure out what rewrite prompt Gemma-7b-it was given, from the or
 - Train with different models (Gemma-7b-it, Llama2-7b-chat, Mistral7b-Instruct; quantized due to memory constraints), using various hyperparameters
 - Colab/Kaggle notebook training:
   - `fine-tune-with-gemma-7.ipynb`
-- Remote server multi-gpu training
+- Remote server multi-gpu training:
    - `lora_train_gem7_ds.py`
    - `vastai_ds_gem7_setup.sh`
 
