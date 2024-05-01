@@ -127,40 +127,6 @@ tokenizer.padding_side = 'right'
 response_template = "<start_of_turn>model"
 collator = DataCollatorForCompletionOnlyLM(response_template, tokenizer=tokenizer)
 
-class SafeSaveCallback(TrainerCallback):
-    def on_save(self, args, state: TrainerState, control: TrainerControl, **kwargs):
-        # Convert all tensors in `state` to CPU and to Python native types for JSON serialization
-        state_dict = state.to_dict()
-        clean_state_dict = {
-            key: value.item() if isinstance(value, torch.Tensor) else value
-            for key, value in state_dict.items()
-        }
-        # Save the cleaned state dict instead of the regular one
-        output_dir = kwargs.get('output_dir', None) or args.output_dir
-        safe_output_dir = os.path.join(output_dir, 'checkpoint-safe')
-        os.makedirs(safe_output_dir, exist_ok=True)
-        state.save_to_json(os.path.join(safe_output_dir, 'trainer_state.json'))
-
-class InferenceCallback(TrainerCallback):
-    def __init__(self, eval_dataset, step_interval=10):
-        self.eval_dataset = eval_dataset
-        self.step_interval = step_interval
-
-    def on_step_end(self, args, state: TrainerState, control: TrainerControl, **kwargs):
-        # Run inference every `step_interval` steps
-        if state.global_step % self.step_interval == 0 and state.global_step > 0:
-            # Pick a single example to run inference (change the index as needed)
-            example = self.eval_dataset[0]['text'].split("<start_of_turn>model")[0] + "<start_of_turn>model"
-#            example = "<start_of_turn>user\n" + example + "<end_of_turn>\n<start_of_turn>model "
-            model = kwargs['model']
-            model.eval()  # Set the model to evaluation mode
-            with torch.no_grad():
-                inputs = tokenizer(example, return_tensors="pt", truncation=True, max_length=max_seq_length).to("cuda")
-                outputs = model.generate(**inputs,max_new_tokens=60,use_cache=True)#, penalty_alpha=0.6, num_beams=2)
-                rewrite_prompt = tokenizer.decode(outputs[0][inputs['input_ids'].shape[-1]:], skip_special_tokens=True)
-                #print("Input:", example)
-                print(f"Inference output at step {state.global_step}: {rewrite_prompt}")
-            model.train()  # Set the model back to train mode
 
 # hyperparameters
 batch_size = 1 #runs out of memory with 2
@@ -187,6 +153,28 @@ deepspeed_config = {
     }
 }
 
+
+class InferenceCallback(TrainerCallback):
+    def __init__(self, eval_dataset, step_interval=10):
+        self.eval_dataset = eval_dataset
+        self.step_interval = step_interval
+
+    def on_step_end(self, args, state: TrainerState, control: TrainerControl, **kwargs):
+        # Run inference every `step_interval` steps
+        if state.global_step % self.step_interval == 0 and state.global_step > 0:
+            # Pick a single example to run inference (change the index as needed)
+            example = self.eval_dataset[0]['text'].split("<start_of_turn>model")[0] + "<start_of_turn>model"
+#            example = "<start_of_turn>user\n" + example + "<end_of_turn>\n<start_of_turn>model "
+            model = kwargs['model']
+            model.eval()  # Set the model to evaluation mode
+            with torch.no_grad():
+                inputs = tokenizer(example, return_tensors="pt", truncation=True, max_length=max_seq_length).to("cuda")
+                outputs = model.generate(**inputs,max_new_tokens=60,use_cache=True)#, penalty_alpha=0.6, num_beams=2)
+                rewrite_prompt = tokenizer.decode(outputs[0][inputs['input_ids'].shape[-1]:], skip_special_tokens=True)
+                #print("Input:", example)
+                print(f"Inference output at step {state.global_step}: {rewrite_prompt}")
+            model.train()  # Set the model back to train mode
+
 training_arguments = transformers.TrainingArguments(
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
@@ -196,6 +184,7 @@ training_arguments = transformers.TrainingArguments(
         evaluation_strategy="steps",
         eval_steps=20,
         warmup_steps=10,
+        save_strategy="steps",
         save_steps = 100,
         learning_rate=learning_rate,
         weight_decay=weight_decay,
@@ -222,7 +211,7 @@ trainer = SFTTrainer(
     args=training_arguments,
     peft_config=lora_config,
     data_collator=collator,
-    callbacks=[InferenceCallback(eval_dataset=prompts_val, step_interval=20), SafeSaveCallback()]
+    callbacks=[InferenceCallback(eval_dataset=prompts_val, step_interval=20)]
 )
 print("Begin Fine tuning")
 trainer.train()
