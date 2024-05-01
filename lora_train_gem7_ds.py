@@ -127,6 +127,20 @@ tokenizer.padding_side = 'right'
 response_template = "<start_of_turn>model"
 collator = DataCollatorForCompletionOnlyLM(response_template, tokenizer=tokenizer)
 
+class SafeSaveCallback(TrainerCallback):
+    def on_save(self, args, state: TrainerState, control: TrainerControl, **kwargs):
+        # Convert all tensors in `state` to CPU and to Python native types for JSON serialization
+        state_dict = state.to_dict()
+        clean_state_dict = {
+            key: value.item() if isinstance(value, torch.Tensor) else value
+            for key, value in state_dict.items()
+        }
+        # Save the cleaned state dict instead of the regular one
+        output_dir = kwargs.get('output_dir', None) or args.output_dir
+        safe_output_dir = os.path.join(output_dir, 'checkpoint-safe')
+        os.makedirs(safe_output_dir, exist_ok=True)
+        state.save_to_json(os.path.join(safe_output_dir, 'trainer_state.json'))
+
 class InferenceCallback(TrainerCallback):
     def __init__(self, eval_dataset, step_interval=10):
         self.eval_dataset = eval_dataset
@@ -208,7 +222,7 @@ trainer = SFTTrainer(
     args=training_arguments,
     peft_config=lora_config,
     data_collator=collator,
-    callbacks=[InferenceCallback(eval_dataset=prompts_val, step_interval=20)]
+    callbacks=[InferenceCallback(eval_dataset=prompts_val, step_interval=20), SafeSaveCallback()]
 )
 print("Begin Fine tuning")
 trainer.train()
